@@ -1,0 +1,70 @@
+使用场景：
+	1、多个应用共同使用同一个第三方组件，可以在tomcat配置统一的第三方组件的jndi
+	2、一个应用使用多个同种性质的第三方组件（例如：数据源），可以在tomcat进行配置，方便更换数据源，降低
+	   程序与数据源的耦合度
+	
+	Application1	  Application2	   Application3
+				\			|			/
+				  \			|		   /
+						  tomcat
+					/		|		\
+				  /			|		  \
+		oracleSource   mysqlSource    sqlSource			
+		
+配置步骤：
+	web：
+		1、修改tomcat的context.xml，context元素中增加（也可以在server.xml中配置）
+			<Resource name="bean/FirstBean" auth="Container"
+    		  type="com.witx.jndi.bean.FirstBean"
+    		  factory = "org.apache.naming.factory.BeanFactory"
+    		  bar = "50"/>
+		2、web.xml中增加jndi配置
+			<resource-env-ref>
+			  	<description>javabean测试</description>
+			  	<resource-env-ref-name>bean/FirstBean</resource-env-ref-name>
+			  	<resource-env-ref-type>com.witx.jndi.bean.FirstBean</resource-env-ref-type>
+			</resource-env-ref>
+		3、程序中使用
+			//根上下文
+			Context initCtx =  new InitialContext();
+			//根上下文的comp/env上下文，此上下文中有我们创建的bean/FirstBean对象
+			Context envCtx = (Context)initCtx.lookup("java:comp/env");
+			//在上下文中获取bean/FirstBean对象
+			fBean = (FirstBean) envCtx.lookup("bean/FirstBean");
+			//上述可以形象的体现出 命名和目录接口（Naming And Directory Interface） 的概念
+	spring：
+		1、tomcat的context.xml，context元素中增加
+			<Resource  name="jdbc/books"   
+		     auth="Container"       
+		     type="javax.sql.DataSource"       
+		     driverClassName="com.microsoft.sqlserver.jdbc.SQLServerDriver"       
+		     url="jdbc:sqlserver://localhost:1433;DatabaseName=books"       
+		     username="sa"       
+		     password="accp"       
+		     maxActive="100"       
+		     maxIdle="30"       
+		     maxWait="10000" />
+		    1) name:    指定Resource的JNDI名称
+			2) auth :       指定管理Resource的Manager
+			（Container:由容器创建和管理   |Application：由Web应用创建和管理）
+			3) type:     指定Resource所属的Java类
+			4) maxActive:  指定连接池中处于活动状态的数据库连接的最大数目
+			5) maxIdle:   指定连接池中处于空闲状态的数据库连接的最大数目
+			6) maxWait:   指定连接池中的连接处于空闲的最长时间
+			7) username:    数据库的用户名
+			8) password:    数据库的密码
+			9) driverClassName:数据库连接驱动类的名称
+			10) url:         数据库连接字符串
+		2、spring配置
+			<bean id="dataSource"
+			  class="org.springframework.jndi.JndiObjectFactoryBean">
+			  <property name="jndiName"
+			   value="java:comp/env/jdbc/books">
+			  </property>
+			</bean>
+		3、使用
+			Context it = new  InitialContext();
+			DataSource ds = (DataSource) it.lookup("java:comp/env/jdbc/books");
+			Connection conn = ds.getConnection();
+	     
+			
